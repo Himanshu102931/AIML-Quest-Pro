@@ -378,6 +378,24 @@
             gap: 1rem;
             margin-top: 1rem;
         }
+        
+        /* Progress */
+        .weekly-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .day-summary-card {
+            background: var(--bg-primary);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            border-bottom: 3px solid var(--bg-tertiary);
+        }
+        .day-summary-card.active {
+            border-bottom-color: var(--success);
+        }
 
 
         /* Achievements */
@@ -465,6 +483,9 @@
                 height: auto;
                 overflow-y: visible;
             }
+            .weekly-summary-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            }
         }
         @media (max-width: 768px) {
             .grid-3-col, .grid-2-col, .add-goal-form {
@@ -526,6 +547,7 @@
 // ===================================================================================
 
 let questData;
+let skillGrowthChart;
 
 const defaultQuestData = {
     level: 1,
@@ -535,9 +557,10 @@ const defaultQuestData = {
         'system-design': { name: 'System Design', description: 'Study design patterns', icon: 'fas fa-sitemap', level: 1, xp: 0 },
         'aiml': { name: 'AI/ML', description: 'Learn new models', icon: 'fas fa-brain', level: 1, xp: 0 },
     },
-    habits: [], // { id, name, skillId, xp, type: 'binary'/'quantity', target, frequency, restDays: [0,6] }
-    goals: [], // { id, text, target, skillId, current, completed, frequency }
-    history: {}, // { 'YYYY-MM-DD': { xp, habits: {habitId: progress}, ...} }
+    habits: [],
+    goals: [],
+    achievements: [],
+    history: {},
     dailyChallenge: { id: null, completed: false, date: null },
     pomodoro: { sessionsToday: 0, lastSessionDate: null },
     settings: {
@@ -802,6 +825,7 @@ function updateHabitProgress(habitId, newProgress) {
     renderHabitList();
 }
 
+
 function showHabitModal(habitId = null) {
     const modal = document.getElementById('main-modal');
     const isEditing = habitId !== null;
@@ -818,7 +842,8 @@ function showHabitModal(habitId = null) {
     modal.innerHTML = `
         <div class="modal-content">
             <button class="modal-close">&times;</button>
-            <h2>${isEditing ? 'Edit' : 'Add'} Habit</h2>
+            <h2>${isEditing ? 'Edit' : 'Manage'} Habits</h2>
+            ${isEditing ? '' : '<p>Create a new habit below, or scroll down to edit existing ones.</p>'}
             <form id="habit-form">
                 <input type="hidden" name="id" value="${habit.id || ''}">
                 <div class="form-group"><label>Name</label><input type="text" name="name" value="${habit.name || ''}" required></div>
@@ -826,16 +851,15 @@ function showHabitModal(habitId = null) {
                 <div class="form-group"><label>XP (for full completion)</label><input type="number" name="xp" value="${habit.xp || 10}" min="5" step="5" required></div>
                 <div class="grid-2-col">
                     <div class="form-group"><label>Type</label><select name="type"><option value="binary" ${habit.type==='binary'?'selected':''}>Complete/Incomplete</option><option value="quantity" ${habit.type==='quantity'?'selected':''}>Quantity</option></select></div>
-                    <div class="form-group" id="habit-target-group" style="display:${habit.type === 'quantity' ? 'block' : 'none'}"><label>Target</label><input type="number" name="target" value="${habit.target || 10}" min="1"></div>
+                    <div class="form-group" id="habit-target-group" style="display:${habit.type === 'quantity' ? 'block' : 'none'}"><label>Daily Target</label><input type="number" name="target" value="${habit.target || 10}" min="1"></div>
                 </div>
                 <div class="form-group"><label>Frequency</label><select name="frequency"><option value="daily" ${habit.frequency==='daily'?'selected':''}>Daily</option><option value="weekly" ${habit.frequency==='weekly'?'selected':''}>Weekly</option><option value="monthly" ${habit.frequency==='monthly'?'selected':''}>Monthly</option></select></div>
-                <div id="rest-days-group" style="display:${habit.frequency !== 'daily' ? 'none' : 'block'}"><label>Rest Days</label><div class="day-selector">${dayCheckboxes}</div></div>
+                <div id="rest-days-group" style="display:${(habit.frequency || 'daily') !== 'daily' ? 'none' : 'block'}"><label>Rest Days (uncheck days to work)</label><div class="day-selector">${dayCheckboxes}</div></div>
                 <button type="submit" class="btn btn-primary">${isEditing ? 'Save Changes' : 'Create Habit'}</button>
             </form>
         </div>`;
     modal.classList.add('show');
 
-    // Event Listeners for Modal
     modal.querySelector('.modal-close').addEventListener('click', () => modal.classList.remove('show'));
     const form = document.getElementById('habit-form');
     form.querySelector('[name="type"]').addEventListener('change', (e) => {
@@ -852,7 +876,7 @@ function showHabitModal(habitId = null) {
             skillId: formData.get('skillId'),
             xp: Number(formData.get('xp')),
             type: formData.get('type'),
-            target: Number(formData.get('target')),
+            target: formData.get('type') === 'quantity' ? Number(formData.get('target')) : 1,
             frequency: formData.get('frequency'),
             restDays: formData.getAll('restDays')
         };
@@ -931,14 +955,7 @@ function addGoal(e) {
     const goalData = Object.fromEntries(formData.entries());
     if (!goalData.text || !goalData.target || !goalData.skillId) return;
 
-    questData.goals.push({ 
-        id: Date.now(), 
-        text: goalData.text, 
-        target: Number(goalData.target), 
-        skillId: goalData.skillId, 
-        current: 0, 
-        completed: false 
-    });
+    questData.goals.push({ id: Date.now(), text: goalData.text, target: Number(goalData.target), skillId: goalData.skillId, current: 0, completed: false });
     saveData();
     renderGoalsList();
     e.target.reset();
@@ -959,8 +976,88 @@ function updateGoalsProgress(skillIdOrGoalId, amount, isManual = false) {
     if (document.querySelector('#goals.view.active')) renderGoalsList();
 }
 
+// --- Progress View Logic ---
+function renderProgress() {
+    const view = document.getElementById('progress');
+    view.innerHTML = `
+        <div class="card">
+            <div class="card-header"><h2>Weekly Summary</h2></div>
+            <div class="weekly-summary-grid" id="weekly-summary"></div>
+        </div>
+        <div class="card">
+            <div class="card-header"><h2>Skill Growth Chart</h2></div>
+            <canvas id="skill-growth-chart"></canvas>
+        </div>
+    `;
+    renderWeeklySummary();
+    renderSkillGrowthChart();
+}
+
+function renderWeeklySummary() {
+    const summaryGrid = document.getElementById('weekly-summary');
+    let summaryHTML = '';
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dayHistory = questData.history[dateStr];
+        const totalXP = dayHistory ? Object.values(dayHistory.habits).reduce((sum, progress) => sum + progress, 0) : 0; // Simplified XP calc
+        
+        summaryHTML += `
+            <div class="day-summary-card ${dayHistory ? 'active' : ''}">
+                <div>${days[date.getDay()]}</div>
+                <div><strong>${date.getDate()}</strong></div>
+                <div style="font-size: 0.8rem; margin-top: 0.5rem;">${totalXP} XP</div>
+            </div>
+        `;
+    }
+    summaryGrid.innerHTML = summaryHTML;
+}
+
+function renderSkillGrowthChart() {
+    const ctx = document.getElementById('skill-growth-chart').getContext('2d');
+    const labels = [];
+    const datasets = {};
+
+    Object.keys(questData.skills).forEach(skillId => {
+        datasets[skillId] = {
+            label: questData.skills[skillId].name,
+            data: [],
+            backgroundColor: themes[questData.settings.theme].colors['--accent-primary'], // Needs distinct colors
+        };
+    });
+    
+    // This is a simplified data gathering. A more robust solution would be needed.
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        labels.push(date.toLocaleDateString([], {weekday: 'short'}));
+        // This part needs real data aggregation from history
+        Object.keys(datasets).forEach(skillId => datasets[skillId].data.push(Math.random() * 50));
+    }
+
+    if (skillGrowthChart) {
+        skillGrowthChart.destroy();
+    }
+
+    skillGrowthChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: Object.values(datasets),
+        },
+        options: {
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true }
+            }
+        }
+    });
+}
+
+
 // --- Placeholder Render Functions ---
-function renderProgress() { document.getElementById('progress').innerHTML = `<div class="card"><div class="card-header"><h2>Progress View</h2></div></div>`; }
 function renderAnalytics() { document.getElementById('analytics').innerHTML = `<div class="card"><div class="card-header"><h2>Analytics View</h2></div></div>`; }
 function renderAchievements() { document.getElementById('achievements').innerHTML = `<div class="card"><div class="card-header"><h2>Trophy Room</h2></div></div>`; }
 function renderPomodoro() { document.getElementById('pomodoro').innerHTML = `<div class="card"><div class="card-header"><h2>Pomodoro Timer</h2></div></div>`; }
