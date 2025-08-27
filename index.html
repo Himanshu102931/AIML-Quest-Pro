@@ -434,13 +434,17 @@
             border-radius: 0.75rem;
             border: 1px solid var(--bg-tertiary);
             opacity: 0.5;
+            transition: all 0.3s ease;
         }
         .achievement-card.unlocked {
             opacity: 1;
             border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
         }
         .achievement-card .icon { font-size: 2.5rem; color: var(--gold); margin-bottom: 0.5rem; }
-        .achievement-card h4 { margin-bottom: 0.25rem; }
+        .achievement-card h4 { margin-bottom: 0.25rem; color: var(--text-primary); }
+        .achievement-card p { font-size: 0.9rem; color: var(--text-secondary); }
+
 
         /* Pomodoro */
         .pomodoro-timer { text-align: center; }
@@ -647,6 +651,15 @@ function updateDateTime() {
 // 🚀 SECTION 2: THE GAMIFICATION ENGINE
 // ===================================================================================
 
+const achievementDefinitions = {
+    'first_steps': { name: 'First Steps', description: 'Complete your first habit.', icon: 'fa-shoe-prints', condition: () => Object.keys(questData.history).length > 0 },
+    'level_5': { name: 'Level 5 Reached', description: 'Reach character level 5.', icon: 'fa-star', condition: () => questData.level >= 5 },
+    'level_10': { name: 'Level 10 Reached', description: 'Reach character level 10.', icon: 'fa-crown', condition: () => questData.level >= 10 },
+    'goal_setter': { name: 'Goal Setter', description: 'Create your first goal.', icon: 'fa-bullseye', condition: () => questData.goals.length > 0 },
+    'goal_achiever': { name: 'Goal Achiever', description: 'Complete your first goal.', icon: 'fa-trophy', condition: () => questData.goals.some(g => g.completed) },
+    'dsa_adept': { name: 'DSA Adept', description: 'Reach Level 5 in DSA skill.', icon: 'fa-code', condition: () => questData.skills.dsa.level >= 5 },
+};
+
 function getXPForNextLevel(level) { return Math.floor(100 * Math.pow(level, 1.5)); }
 
 function addXP(amount, skillId = null) {
@@ -655,6 +668,7 @@ function addXP(amount, skillId = null) {
         questData.skills[skillId].xp += amount;
     }
     checkLevelUp();
+    checkAchievements();
     saveData();
     if (document.querySelector('#dashboard.view.active')) renderDashboard();
 }
@@ -673,6 +687,16 @@ function checkLevelUp() {
             skill.level++;
         }
     }
+}
+
+function checkAchievements() {
+    Object.entries(achievementDefinitions).forEach(([id, ach]) => {
+        if (!questData.achievements.includes(id) && ach.condition()) {
+            questData.achievements.push(id);
+            addXP(100); // Bonus XP for achievement
+            // TODO: Add notification for achievement unlocked
+        }
+    });
 }
 
 function generateDailyChallenge() {
@@ -1085,11 +1109,11 @@ function renderAnalytics() {
     view.innerHTML = `
         <div class="grid-2-col">
             <div class="card">
-                <div class="card-header"><h2><i class="fas-chart-pie"></i> Skill Balance</h2></div>
+                <div class="card-header"><h2><i class="fas fa-chart-pie"></i> Skill Balance</h2></div>
                 <canvas id="skill-balance-chart"></canvas>
             </div>
             <div class="card">
-                <div class="card-header"><h2><i class="fas-tachometer-alt"></i> Key Metrics</h2></div>
+                <div class="card-header"><h2><i class="fas fa-tachometer-alt"></i> Key Metrics</h2></div>
                 <div class="analytics-grid" id="analytics-metrics"></div>
             </div>
         </div>
@@ -1180,8 +1204,29 @@ function renderAiSuggestions() {
 }
 
 
+// --- Achievements View Logic ---
+function renderAchievements() {
+    const view = document.getElementById('achievements');
+    view.innerHTML = `
+        <div class="card">
+            <div class="card-header"><h2><i class="fas fa-trophy"></i> Trophy Room</h2></div>
+            <div class="achievement-grid" id="achievements-list"></div>
+        </div>
+    `;
+    const listEl = document.getElementById('achievements-list');
+    listEl.innerHTML = Object.entries(achievementDefinitions).map(([id, ach]) => {
+        const isUnlocked = questData.achievements.includes(id);
+        return `
+            <div class="achievement-card ${isUnlocked ? 'unlocked' : ''}">
+                <div class="icon"><i class="fas ${ach.icon}"></i></div>
+                <h4>${ach.name}</h4>
+                <p>${ach.description}</p>
+            </div>
+        `;
+    }).join('');
+}
+
 // --- Placeholder Render Functions ---
-function renderAchievements() { document.getElementById('achievements').innerHTML = `<div class="card"><div class="card-header"><h2>Trophy Room</h2></div></div>`; }
 function renderPomodoro() { document.getElementById('pomodoro').innerHTML = `<div class="card"><div class="card-header"><h2>Pomodoro Timer</h2></div></div>`; }
 function renderCalendar() { document.getElementById('calendar').innerHTML = `<div class="card"><div class="card-header"><h2>Calendar View</h2></div></div>`; }
 function renderSettings() {
