@@ -59,11 +59,15 @@
         body.focus-mode .sidebar {
             opacity: 0.1;
             pointer-events: none;
+            transition: opacity 0.5s ease;
         }
 
         /* ---------------------------------- */
         /* Section 1: Layout & Navigation     */
         /* ---------------------------------- */
+        .header, .sidebar {
+            transition: opacity 0.5s ease;
+        }
         .header {
             grid-column: 1 / -1;
             display: flex;
@@ -449,8 +453,32 @@
         /* Pomodoro */
         .pomodoro-timer { text-align: center; }
         .timer-display { font-size: 5rem; font-weight: 800; margin: 1rem 0; color: var(--accent-primary); }
-        .timer-controls { display: flex; justify-content: center; gap: 1rem; }
+        .timer-controls { display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem;}
         
+        /* Calendar */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+        }
+        .calendar-header {
+            text-align: center;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        .calendar-day {
+            background: var(--bg-primary);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            min-height: 80px;
+            border: 1px solid var(--bg-tertiary);
+        }
+        .calendar-day.other-month { opacity: 0.4; }
+        .calendar-day.today { border-color: var(--accent-primary); }
+        .calendar-day.active { background-color: var(--success); }
+        .day-number { font-weight: 600; }
+
         /* Settings */
         .theme-buttons { display: flex; gap: 1rem; flex-wrap: wrap; }
         .theme-btn { width: 100px; height: 60px; border: 2px solid var(--bg-tertiary); }
@@ -576,6 +604,7 @@
 let questData;
 let skillGrowthChart;
 let skillBalanceChart;
+let pomodoroInterval;
 
 const defaultQuestData = {
     level: 1,
@@ -694,7 +723,6 @@ function checkAchievements() {
         if (!questData.achievements.includes(id) && ach.condition()) {
             questData.achievements.push(id);
             addXP(100); // Bonus XP for achievement
-            // TODO: Add notification for achievement unlocked
         }
     });
 }
@@ -1226,9 +1254,128 @@ function renderAchievements() {
     }).join('');
 }
 
-// --- Placeholder Render Functions ---
-function renderPomodoro() { document.getElementById('pomodoro').innerHTML = `<div class="card"><div class="card-header"><h2>Pomodoro Timer</h2></div></div>`; }
-function renderCalendar() { document.getElementById('calendar').innerHTML = `<div class="card"><div class="card-header"><h2>Calendar View</h2></div></div>`; }
+// --- Pomodoro View Logic ---
+function renderPomodoro() {
+    const view = document.getElementById('pomodoro');
+    view.innerHTML = `
+        <div class="card pomodoro-timer">
+            <div class="card-header"><h2><i class="fas fa-clock"></i> Pomodoro Timer</h2></div>
+            <div class="timer-display" id="pomodoro-display">25:00</div>
+            <div class="timer-controls">
+                <button class="btn btn-primary" id="pomodoro-start"><i class="fas fa-play"></i> Start</button>
+                <button class="btn btn-secondary" id="pomodoro-pause" style="display:none;"><i class="fas fa-pause"></i> Pause</button>
+                <button class="btn btn-danger" id="pomodoro-reset"><i class="fas fa-stop"></i> Reset</button>
+            </div>
+            <div class="form-group">
+                <label>Session Type</label>
+                <select id="pomodoro-type">
+                    <option value="pomodoro">Pomodoro (25 min)</option>
+                    <option value="shortBreak">Short Break (5 min)</option>
+                    <option value="longBreak">Long Break (15 min)</option>
+                </select>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('pomodoro-start').addEventListener('click', startPomodoro);
+    document.getElementById('pomodoro-pause').addEventListener('click', pausePomodoro);
+    document.getElementById('pomodoro-reset').addEventListener('click', resetPomodoro);
+    document.getElementById('pomodoro-type').addEventListener('change', resetPomodoro);
+}
+
+function startPomodoro() {
+    document.body.classList.add('focus-mode');
+    document.getElementById('pomodoro-start').style.display = 'none';
+    document.getElementById('pomodoro-pause').style.display = 'inline-flex';
+    
+    let duration = getPomodoroDuration();
+    
+    pomodoroInterval = setInterval(() => {
+        duration--;
+        updatePomodoroDisplay(duration);
+        if (duration <= 0) {
+            clearInterval(pomodoroInterval);
+            document.body.classList.remove('focus-mode');
+            if (document.getElementById('pomodoro-type').value === 'pomodoro') {
+                addXP(25); // Award XP for a full session
+            }
+            resetPomodoro();
+        }
+    }, 1000);
+}
+
+function pausePomodoro() {
+    clearInterval(pomodoroInterval);
+    document.body.classList.remove('focus-mode');
+    document.getElementById('pomodoro-start').style.display = 'inline-flex';
+    document.getElementById('pomodoro-pause').style.display = 'none';
+}
+
+function resetPomodoro() {
+    clearInterval(pomodoroInterval);
+    document.body.classList.remove('focus-mode');
+    document.getElementById('pomodoro-start').style.display = 'inline-flex';
+    document.getElementById('pomodoro-pause').style.display = 'none';
+    updatePomodoroDisplay(getPomodoroDuration());
+}
+
+function getPomodoroDuration() {
+    const type = document.getElementById('pomodoro-type').value;
+    if (type === 'shortBreak') return 5 * 60;
+    if (type === 'longBreak') return 15 * 60;
+    return 25 * 60;
+}
+
+function updatePomodoroDisplay(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    document.getElementById('pomodoro-display').textContent = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+
+// --- Calendar View Logic ---
+function renderCalendar() {
+    const view = document.getElementById('calendar');
+    view.innerHTML = `
+        <div class="card">
+            <div class="card-header"><h2><i class="fas fa-calendar-alt"></i> Monthly Activity</h2></div>
+            <div class="calendar-grid" id="calendar-grid"></div>
+        </div>
+    `;
+    renderCalendarGrid();
+}
+
+function renderCalendarGrid() {
+    const grid = document.getElementById('calendar-grid');
+    const today = new Date();
+    const month = today.getMonth();
+    const year = today.getFullYear();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    grid.innerHTML = '';
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    daysOfWeek.forEach(day => {
+        grid.innerHTML += `<div class="calendar-header">${day}</div>`;
+    });
+
+    for (let i = 0; i < firstDay; i++) {
+        grid.innerHTML += `<div class="calendar-day other-month"></div>`;
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        const isActive = questData.history[dateStr];
+        const isToday = day === today.getDate();
+        grid.innerHTML += `
+            <div class="calendar-day ${isActive ? 'active' : ''} ${isToday ? 'today' : ''}">
+                <div class="day-number">${day}</div>
+            </div>
+        `;
+    }
+}
+
+// --- Settings View Logic ---
 function renderSettings() {
     const view = document.getElementById('settings');
     let themeButtonsHTML = Object.entries(themes).map(([id, theme]) => 
