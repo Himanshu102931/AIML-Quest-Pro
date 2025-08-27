@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIML Quest Pro</title>
+    <link rel="icon" type="image/png" href="https://placehold.co/32x32/3b82f6/white?text=Q">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ---------------------------------- */
+        /* Section 0: Theming & Core Styles   */
+        /* ---------------------------------- */
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --accent-primary: #3b82f6;
+            --accent-secondary: #8b5cf6;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gold: #fbbf24;
+            --font-family: 'Inter', sans-serif;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --accent-glow: rgba(59, 130, 246, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-primary) var(--bg-secondary);
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 1rem;
+            transition: background 0.3s ease;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 1.5rem;
+        }
+
+        /* Focus Mode */
+        body.focus-mode .header,
+        body.focus-mode .sidebar {
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        /* ---------------------------------- */
+        /* Section 1: Layout & Navigation     */
+        /* ---------------------------------- */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: var(--bg-secondary);
+            border-radius: 1rem;
+            border: 1px solid var(--bg-tertiary);
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .datetime-display {
+            text-align: right;
+        }
+
+        #current-time {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--bg-tertiary);
+            height: calc(100vh - 6rem);
+            position: sticky;
+            top: 1rem;
+        }
+
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border-radius: 0.5rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .nav-btn.active {
+            background: var(--accent-primary);
+            color: white;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .nav-btn i {
+            width: 20px;
+            text-align: center;
+        }
+
+        main {
+            height: calc(100vh - 6rem);
+            overflow-y: auto;
+            padding-right: 1rem;
+        }
+
+        .view {
+            display: none;
+        }
+        .view.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ---------------------------------- */
+        /* Section 2: Cards & Grids           */
+        /* ---------------------------------- */
+        .card {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--bg-tertiary);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 25px var(--shadow-color);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .card-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .grid-3-col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .grid-2-col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* ---------------------------------- */
+        /* Section 3: UI Components           */
+        /* ---------------------------------- */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 0.5rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: var(--font-family);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-primary);
+            border-radius: 8px;
+            transition: width 0.5s ease;
+        }
+        
+        /* ---------------------------------- */
+        /* Section 4: View-Specific Styles    */
+        /* ---------------------------------- */
+
+        /* Dashboard */
+        .challenge-card {
+            border-left: 4px solid var(--accent-secondary);
+            text-align: center;
+        }
+        .challenge-card.completed {
+            border-left-color: var(--success);
+        }
+        .skill-card .progress-bar { margin-top: 0.5rem; }
+
+        /* Habits */
+        .habit-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto auto;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-primary);
+            border-radius: 0.75rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid var(--accent-primary);
+        }
+        .habit-item.completed {
+            border-left-color: var(--success);
+            opacity: 0.7;
+        }
+        .habit-item .habit-name {
+            font-weight: 600;
+        }
+        .habit-item.completed .habit-name {
+            text-decoration: line-through;
+        }
+        .habit-checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--bg-tertiary);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .habit-checkbox.completed {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        .habit-quantity-input {
+            width: 60px;
+            text-align: center;
+            padding: 0.5rem;
+        }
+        .habit-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .habit-actions .btn {
+            padding: 0.5rem;
+            background: var(--bg-tertiary);
+        }
+        .day-selector { display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap; }
+        .day-selector label {
+            cursor: pointer;
+            padding: 0.5rem;
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 0.5rem;
+            width: 40px; text-align: center;
+            transition: all 0.2s ease;
+        }
+        .day-selector input:checked + label {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+        .day-selector input { display: none; }
+        
+        /* Goals */
+        .goal-item {
+            padding: 1rem;
+            background: var(--bg-primary);
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--accent-secondary);
+        }
+        .goal-item.completed {
+            border-left-color: var(--gold);
+        }
+        .goal-item.completed .goal-text {
+            text-decoration: line-through;
+        }
+        .goal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .add-goal-form {
+            display: grid;
+            grid-template-columns: 1fr auto auto auto;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+
+        /* Achievements */
+        .achievement-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .achievement-card {
+            padding: 1.5rem;
+            text-align: center;
+            background: var(--bg-primary);
+            border-radius: 0.75rem;
+            border: 1px solid var(--bg-tertiary);
+            opacity: 0.5;
+        }
+        .achievement-card.unlocked {
+            opacity: 1;
+            border-color: var(--gold);
+        }
+        .achievement-card .icon { font-size: 2.5rem; color: var(--gold); margin-bottom: 0.5rem; }
+        .achievement-card h4 { margin-bottom: 0.25rem; }
+
+        /* Pomodoro */
+        .pomodoro-timer { text-align: center; }
+        .timer-display { font-size: 5rem; font-weight: 800; margin: 1rem 0; color: var(--accent-primary); }
+        .timer-controls { display: flex; justify-content: center; gap: 1rem; }
+        
+        /* Settings */
+        .theme-buttons { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .theme-btn { width: 100px; height: 60px; border: 2px solid var(--bg-tertiary); }
+        .theme-btn.active { border-color: var(--accent-primary); }
+        .skill-manager-item { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+        .skill-manager-item input { background: var(--bg-tertiary); }
+        
+        /* Modals */
+        .modal-backdrop {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s;
+        }
+        .modal-backdrop.show { display: flex; }
+        .modal-content {
+            background: var(--bg-secondary);
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            animation: slideIn 0.3s;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem; right: 1rem;
+            background: none; border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                position: static;
+                height: auto;
+                margin-bottom: 1.5rem;
+            }
+            main {
+                height: auto;
+                overflow-y: visible;
+            }
+        }
+        @media (max-width: 768px) {
+            .grid-3-col, .grid-2-col, .add-goal-form {
+                grid-template-columns: 1fr;
+            }
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-rocket"></i> AIML Quest Pro</h1>
+            <div class="datetime-display">
+                <div id="current-time">12:00 PM</div>
+                <div id="current-date">Monday, Jan 1</div>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <nav id="main-nav">
+                <button class="nav-btn active" data-view="dashboard"><i class="fas fa-home"></i> Dashboard</button>
+                <button class="nav-btn" data-view="habits"><i class="fas fa-check-circle"></i> Habits</button>
+                <button class="nav-btn" data-view="goals"><i class="fas fa-bullseye"></i> Goals</button>
+                <button class="nav-btn" data-view="progress"><i class="fas fa-chart-line"></i> Progress</button>
+                <button class="nav-btn" data-view="analytics"><i class="fas fa-chart-pie"></i> Analytics</button>
+                <button class="nav-btn" data-view="achievements"><i class="fas fa-trophy"></i> Trophy Room</button>
+                <button class="nav-btn" data-view="pomodoro"><i class="fas fa-clock"></i> Pomodoro</button>
+                <button class="nav-btn" data-view="calendar"><i class="fas fa-calendar-alt"></i> Calendar</button>
+                <button class="nav-btn" data-view="settings"><i class="fas fa-cog"></i> Settings</button>
+            </nav>
+        </aside>
+
+        <main>
+            <div id="dashboard" class="view active"></div>
+            <div id="habits" class="view"></div>
+            <div id="goals" class="view"></div>
+            <div id="progress" class="view"></div>
+            <div id="analytics" class="view"></div>
+            <div id="achievements" class="view"></div>
+            <div id="pomodoro" class="view"></div>
+            <div id="calendar" class="view"></div>
+            <div id="settings" class="view"></div>
+        </main>
+    </div>
+
+    <div id="main-modal" class="modal-backdrop"></div>
+    <div id="weekly-report-modal" class="modal-backdrop"></div>
+
+
+<script>
+// ===================================================================================
+// 🚀 SECTION 1: CORE ARCHITECTURE & INITIALIZATION
+// ===================================================================================
+
+let questData;
+
+const defaultQuestData = {
+    level: 1,
+    xp: 0,
+    skills: {
+        'dsa': { name: 'DSA', description: 'Practice with LeetCode', icon: 'fas fa-code', level: 1, xp: 0 },
+        'system-design': { name: 'System Design', description: 'Study design patterns', icon: 'fas fa-sitemap', level: 1, xp: 0 },
+        'aiml': { name: 'AI/ML', description: 'Learn new models', icon: 'fas fa-brain', level: 1, xp: 0 },
+    },
+    habits: [], // { id, name, skillId, xp, type: 'binary'/'quantity', target, frequency, restDays: [0,6] }
+    goals: [], // { id, text, target, skillId, current, completed, frequency }
+    history: {}, // { 'YYYY-MM-DD': { xp, habits: {habitId: progress}, ...} }
+    dailyChallenge: { id: null, completed: false, date: null },
+    pomodoro: { sessionsToday: 0, lastSessionDate: null },
+    settings: {
+        theme: 'theme-blue-ocean',
+        userName: 'Adventurer',
+    }
+};
+
+const themes = {
+    'theme-blue-ocean': { name: 'Blue Ocean', colors: { '--bg-primary': '#0f172a', '--bg-secondary': '#1e293b', '--bg-tertiary': '#334155', '--accent-primary': '#3b82f6', '--accent-secondary': '#0ea5e9' } },
+    'theme-purple-night': { name: 'Purple Night', colors: { '--bg-primary': '#1e1b4b', '--bg-secondary': '#312e81', '--bg-tertiary': '#4338ca', '--accent-primary': '#8b5cf6', '--accent-secondary': '#a78bfa' } },
+    'theme-matrix-green': { name: 'Matrix Green', colors: { '--bg-primary': '#030712', '--bg-secondary': '#111827', '--bg-tertiary': '#1f2937', '--accent-primary': '#10b981', '--accent-secondary': '#34d399' } },
+    'theme-solarized-dark': { name: 'Solarized Dark', colors: { '--bg-primary': '#002b36', '--bg-secondary': '#073642', '--bg-tertiary': '#586e75', '--accent-primary': '#268bd2', '--accent-secondary': '#2aa198' } },
+};
+
+function init() {
+    loadData();
+    setTheme(questData.settings.theme);
+    setupEventListeners();
+    const today = new Date().toISOString().split('T')[0];
+    if (!questData.dailyChallenge || questData.dailyChallenge.date !== today) {
+        generateDailyChallenge();
+    }
+    showView('dashboard');
+}
+
+function loadData() {
+    const savedData = localStorage.getItem('aimlQuestProData');
+    questData = savedData ? JSON.parse(savedData) : JSON.parse(JSON.stringify(defaultQuestData));
+}
+
+function saveData() {
+    localStorage.setItem('aimlQuestProData', JSON.stringify(questData));
+}
+
+function setTheme(themeName) {
+    const theme = themes[themeName];
+    if (!theme) return;
+    const root = document.documentElement;
+    Object.entries(theme.colors).forEach(([key, value]) => root.style.setProperty(key, value));
+    questData.settings.theme = themeName;
+}
+
+function setupEventListeners() {
+    document.getElementById('main-nav').addEventListener('click', (e) => {
+        if (e.target.closest('.nav-btn')) {
+            showView(e.target.closest('.nav-btn').dataset.view);
+        }
+    });
+    setInterval(updateDateTime, 1000);
+}
+
+function updateDateTime() {
+    const now = new Date();
+    document.getElementById('current-time').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('current-date').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+// ===================================================================================
+// 🚀 SECTION 2: THE GAMIFICATION ENGINE
+// ===================================================================================
+
+function getXPForNextLevel(level) { return Math.floor(100 * Math.pow(level, 1.5)); }
+
+function addXP(amount, skillId = null) {
+    questData.xp += amount;
+    if (skillId && questData.skills[skillId]) {
+        questData.skills[skillId].xp += amount;
+    }
+    checkLevelUp();
+    saveData();
+    if (document.querySelector('#dashboard.view.active')) renderDashboard();
+}
+
+function checkLevelUp() {
+    let xpForNext = getXPForNextLevel(questData.level);
+    while (questData.xp >= xpForNext) {
+        questData.xp -= xpForNext;
+        questData.level++;
+    }
+    for (const skillId in questData.skills) {
+        const skill = questData.skills[skillId];
+        let xpForNextSkill = getXPForNextLevel(skill.level);
+        while (skill.xp >= xpForNextSkill) {
+            skill.xp -= xpForNextSkill;
+            skill.level++;
+        }
+    }
+}
+
+function generateDailyChallenge() {
+    let lowestLevel = Infinity;
+    let lowestSkillId = null;
+    Object.keys(questData.skills).forEach(skillId => {
+        if (questData.skills[skillId].level < lowestLevel) {
+            lowestLevel = questData.skills[skillId].level;
+            lowestSkillId = skillId;
+        }
+    });
+    
+    questData.dailyChallenge = {
+        id: 'challenge_' + lowestSkillId,
+        text: `Complete a habit related to your lowest skill: ${questData.skills[lowestSkillId].name}`,
+        reward: 50,
+        skillId: lowestSkillId,
+        completed: false,
+        date: new Date().toISOString().split('T')[0]
+    };
+    saveData();
+}
+
+// ===================================================================================
+// 🚀 SECTION 3: VIEW-SPECIFIC LOGIC
+// ===================================================================================
+
+function showView(viewId) {
+    document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    const targetView = document.getElementById(viewId);
+    const targetButton = document.querySelector(`.nav-btn[data-view="${viewId}"]`);
+    if (targetView) {
+        targetView.classList.add('active');
+        const renderFunction = window['render' + viewId.charAt(0).toUpperCase() + viewId.slice(1)];
+        if (typeof renderFunction === 'function') renderFunction();
+    }
+    if (targetButton) targetButton.classList.add('active');
+}
+
+function renderDashboard() {
+    const view = document.getElementById('dashboard');
+    view.innerHTML = `<div class="grid-3-col">
+        <div class="card" id="daily-challenge-card"></div>
+        <div class="card" id="skills-overview-card"></div>
+        <div class="card" id="character-status-card"></div>
+    </div>`;
+
+    const challenge = questData.dailyChallenge;
+    document.getElementById('daily-challenge-card').innerHTML = `
+        <div class="card-header"><h2><i class="fas fa-crosshairs"></i> Daily Challenge</h2></div>
+        <p>${challenge.text || 'No challenge today.'}</p>
+        <p><strong>Reward:</strong> ${challenge.reward || 0} XP</p>
+        <div class="progress-bar" style="margin-top: 1rem;"><div class="progress-fill" style="width: ${challenge.completed ? 100 : 0}%"></div></div>
+    `;
+
+    let skillsHTML = '<div class="card-header"><h2><i class="fas fa-star"></i> Skills</h2></div>';
+    Object.values(questData.skills).forEach(skill => {
+        const xpForNext = getXPForNextLevel(skill.level);
+        const progress = (skill.xp / xpForNext) * 100;
+        skillsHTML += `<div style="margin-bottom: 1rem;"><strong>${skill.name}</strong> - Level ${skill.level}<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div></div>`;
+    });
+    document.getElementById('skills-overview-card').innerHTML = skillsHTML;
+
+    const xpForNextMain = getXPForNextLevel(questData.level);
+    const mainProgress = (questData.xp / xpForNextMain) * 100;
+    document.getElementById('character-status-card').innerHTML = `
+        <div class="card-header"><h2><i class="fas fa-user-astronaut"></i> Status</h2></div>
+        <h3>Level ${questData.level}</h3>
+        <p>${questData.xp} / ${xpForNextMain} XP</p>
+        <div class="progress-bar"><div class="progress-fill" style="width: ${mainProgress}%"></div></div>
+    `;
+}
+
+// --- Habits View Logic ---
+function renderHabits() {
+    const view = document.getElementById('habits');
+    view.innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <h2>Today's Habits</h2>
+                <button class="btn btn-primary" id="manage-habits-btn"><i class="fas fa-edit"></i> Manage Habits</button>
+            </div>
+            <div id="habits-list"></div>
+        </div>
+    `;
+    renderHabitList();
+    document.getElementById('manage-habits-btn').addEventListener('click', () => showHabitModal());
+}
+
+function renderHabitList() {
+    const listEl = document.getElementById('habits-list');
+    if (!listEl) return;
+    
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const dayOfWeek = today.getDay(); 
+
+    const habitsForToday = questData.habits.filter(habit => {
+        if (habit.frequency === 'daily') {
+            return !habit.restDays || !habit.restDays.includes(dayOfWeek.toString());
+        }
+        // TODO: Add logic for weekly/monthly
+        return true;
+    });
+
+    if (habitsForToday.length === 0) {
+        listEl.innerHTML = '<p>No habits scheduled for today. Enjoy your break or manage your habits!</p>';
+        return;
+    }
+
+    listEl.innerHTML = habitsForToday.map(habit => {
+        const history = questData.history[todayStr]?.habits || {};
+        const progress = history[habit.id] || 0;
+        const isCompleted = habit.type === 'binary' ? progress === 1 : progress >= habit.target;
+
+        let progressControl = '';
+        if (habit.type === 'binary') {
+            progressControl = `<div class="habit-checkbox ${isCompleted ? 'completed' : ''}" data-habit-id="${habit.id}">${isCompleted ? '<i class="fas fa-check"></i>' : ''}</div>`;
+        } else {
+            progressControl = `<input type="number" class="habit-quantity-input" data-habit-id="${habit.id}" value="${progress}" min="0" max="${habit.target}"> / ${habit.target}`;
+        }
+
+        return `
+        <div class="habit-item ${isCompleted ? 'completed' : ''}">
+            ${progressControl}
+            <div class="habit-name">${habit.name}</div>
+            <div class="habit-skill-tag">${questData.skills[habit.skillId]?.name || 'General'}</div>
+            <div class="habit-xp-tag">+${habit.xp} XP</div>
+            <div class="habit-actions">
+                ${habit.type === 'quantity' ? `<button class="btn" data-habit-id="${habit.id}" data-action="save"><i class="fas fa-save"></i></button>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+    listEl.removeEventListener('click', handleHabitAction);
+    listEl.addEventListener('click', handleHabitAction);
+}
+
+function handleHabitAction(e) {
+    const target = e.target.closest('[data-habit-id]');
+    if (!target) return;
+    const habitId = Number(target.dataset.habitId);
+    
+    if (target.classList.contains('habit-checkbox')) {
+        updateHabitProgress(habitId, target.classList.contains('completed') ? 0 : 1);
+    } else if (target.dataset.action === 'save') {
+        const input = document.querySelector(`.habit-quantity-input[data-habit-id="${habitId}"]`);
+        updateHabitProgress(habitId, Number(input.value));
+    }
+}
+
+function updateHabitProgress(habitId, newProgress) {
+    const habit = questData.habits.find(h => h.id === habitId);
+    if (!habit) return;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (!questData.history[todayStr]) {
+        questData.history[todayStr] = { xp: 0, habits: {} };
+    }
+    
+    const oldProgress = questData.history[todayStr].habits[habitId] || 0;
+    questData.history[todayStr].habits[habitId] = newProgress;
+
+    let xpChange = 0;
+    if (habit.type === 'binary') {
+        xpChange = (newProgress - oldProgress) * habit.xp;
+    } else {
+        const oldXp = Math.floor((oldProgress / habit.target) * habit.xp);
+        const newXp = Math.floor((newProgress / habit.target) * habit.xp);
+        xpChange = newXp - oldXp;
+    }
+    
+    addXP(xpChange, habit.skillId);
+    renderHabitList();
+}
+
+function showHabitModal(habitId = null) {
+    const modal = document.getElementById('main-modal');
+    const isEditing = habitId !== null;
+    const habit = isEditing ? questData.habits.find(h => h.id === habitId) : {};
+
+    let skillOptions = Object.keys(questData.skills).map(id => `<option value="${id}" ${habit.skillId === id ? 'selected' : ''}>${questData.skills[id].name}</option>`).join('');
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    let dayCheckboxes = days.map((day, i) => `
+        <div>
+            <input type="checkbox" id="day-${i}" name="restDays" value="${i}" ${habit.restDays?.includes(i.toString()) ? 'checked' : ''}>
+            <label for="day-${i}">${day}</label>
+        </div>`).join('');
+
+    modal.innerHTML = `
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <h2>${isEditing ? 'Edit' : 'Add'} Habit</h2>
+            <form id="habit-form">
+                <input type="hidden" name="id" value="${habit.id || ''}">
+                <div class="form-group"><label>Name</label><input type="text" name="name" value="${habit.name || ''}" required></div>
+                <div class="form-group"><label>Skill</label><select name="skillId">${skillOptions}</select></div>
+                <div class="form-group"><label>XP (for full completion)</label><input type="number" name="xp" value="${habit.xp || 10}" min="5" step="5" required></div>
+                <div class="grid-2-col">
+                    <div class="form-group"><label>Type</label><select name="type"><option value="binary" ${habit.type==='binary'?'selected':''}>Complete/Incomplete</option><option value="quantity" ${habit.type==='quantity'?'selected':''}>Quantity</option></select></div>
+                    <div class="form-group" id="habit-target-group" style="display:${habit.type === 'quantity' ? 'block' : 'none'}"><label>Target</label><input type="number" name="target" value="${habit.target || 10}" min="1"></div>
+                </div>
+                <div class="form-group"><label>Frequency</label><select name="frequency"><option value="daily" ${habit.frequency==='daily'?'selected':''}>Daily</option><option value="weekly" ${habit.frequency==='weekly'?'selected':''}>Weekly</option><option value="monthly" ${habit.frequency==='monthly'?'selected':''}>Monthly</option></select></div>
+                <div id="rest-days-group" style="display:${habit.frequency !== 'daily' ? 'none' : 'block'}"><label>Rest Days</label><div class="day-selector">${dayCheckboxes}</div></div>
+                <button type="submit" class="btn btn-primary">${isEditing ? 'Save Changes' : 'Create Habit'}</button>
+            </form>
+        </div>`;
+    modal.classList.add('show');
+
+    // Event Listeners for Modal
+    modal.querySelector('.modal-close').addEventListener('click', () => modal.classList.remove('show'));
+    const form = document.getElementById('habit-form');
+    form.querySelector('[name="type"]').addEventListener('change', (e) => {
+        document.getElementById('habit-target-group').style.display = e.target.value === 'quantity' ? 'block' : 'none';
+    });
+    form.querySelector('[name="frequency"]').addEventListener('change', (e) => {
+        document.getElementById('rest-days-group').style.display = e.target.value === 'daily' ? 'block' : 'none';
+    });
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const habitData = {
+            name: formData.get('name'),
+            skillId: formData.get('skillId'),
+            xp: Number(formData.get('xp')),
+            type: formData.get('type'),
+            target: Number(formData.get('target')),
+            frequency: formData.get('frequency'),
+            restDays: formData.getAll('restDays')
+        };
+
+        if (isEditing) {
+            const index = questData.habits.findIndex(h => h.id === habitId);
+            questData.habits[index] = { ...questData.habits[index], ...habitData };
+        } else {
+            habitData.id = Date.now();
+            questData.habits.push(habitData);
+        }
+        saveData();
+        renderHabits();
+        modal.classList.remove('show');
+    });
+}
+
+// --- Goals View Logic ---
+function renderGoals() {
+    const view = document.getElementById('goals');
+    let skillOptions = Object.keys(questData.skills).map(id => `<option value="${id}">${questData.skills[id].name}</option>`).join('');
+    view.innerHTML = `
+        <div class="card">
+            <div class="card-header"><h2>Set & Track Goals</h2></div>
+            <div id="goals-list"></div>
+            <form id="add-goal-form" class="add-goal-form">
+                <input type="text" name="text" placeholder="e.g., Solve 50 DSA problems" required>
+                <input type="number" name="target" placeholder="Target #" min="1" required>
+                <select name="skillId">${skillOptions}</select>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Add Goal</button>
+            </form>
+        </div>`;
+    renderGoalsList();
+    document.getElementById('add-goal-form').addEventListener('submit', addGoal);
+}
+
+function renderGoalsList() {
+    const listEl = document.getElementById('goals-list');
+    if (!listEl) return;
+    if (questData.goals.length === 0) {
+        listEl.innerHTML = '<p>No goals set. Aim for something great!</p>';
+        return;
+    }
+    listEl.innerHTML = questData.goals.map(goal => {
+        const progress = (goal.current / goal.target) * 100;
+        return `
+        <div class="goal-item ${goal.completed ? 'completed' : ''}">
+            <div class="goal-header">
+                <span class="goal-text">${goal.text}</span>
+                <span>
+                    ${goal.current} / ${goal.target}
+                    <button class="btn btn-secondary" data-goal-id="${goal.id}" data-action="add-progress" style="padding: 0.2rem 0.5rem; margin-left: 0.5rem;">+</button>
+                </span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>
+        </div>`;
+    }).join('');
+    listEl.removeEventListener('click', handleGoalAction);
+    listEl.addEventListener('click', handleGoalAction);
+}
+
+function handleGoalAction(e) {
+    const target = e.target.closest('[data-goal-id]');
+    if (!target || target.dataset.action !== 'add-progress') return;
+    
+    const goalId = Number(target.dataset.goalId);
+    const amount = prompt("How much progress to add?", "1");
+    if (amount && !isNaN(amount)) {
+        updateGoalsProgress(goalId, Number(amount), true);
+    }
+}
+
+function addGoal(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const goalData = Object.fromEntries(formData.entries());
+    if (!goalData.text || !goalData.target || !goalData.skillId) return;
+
+    questData.goals.push({ 
+        id: Date.now(), 
+        text: goalData.text, 
+        target: Number(goalData.target), 
+        skillId: goalData.skillId, 
+        current: 0, 
+        completed: false 
+    });
+    saveData();
+    renderGoalsList();
+    e.target.reset();
+}
+
+function updateGoalsProgress(skillIdOrGoalId, amount, isManual = false) {
+    questData.goals.forEach(goal => {
+        const match = isManual ? (goal.id === skillIdOrGoalId) : (goal.skillId === skillIdOrGoalId);
+        if (match && !goal.completed) {
+            goal.current += amount;
+            if (goal.current >= goal.target) {
+                goal.completed = true;
+                addXP(100); // Bonus XP
+            }
+        }
+    });
+    saveData();
+    if (document.querySelector('#goals.view.active')) renderGoalsList();
+}
+
+// --- Placeholder Render Functions ---
+function renderProgress() { document.getElementById('progress').innerHTML = `<div class="card"><div class="card-header"><h2>Progress View</h2></div></div>`; }
+function renderAnalytics() { document.getElementById('analytics').innerHTML = `<div class="card"><div class="card-header"><h2>Analytics View</h2></div></div>`; }
+function renderAchievements() { document.getElementById('achievements').innerHTML = `<div class="card"><div class="card-header"><h2>Trophy Room</h2></div></div>`; }
+function renderPomodoro() { document.getElementById('pomodoro').innerHTML = `<div class="card"><div class="card-header"><h2>Pomodoro Timer</h2></div></div>`; }
+function renderCalendar() { document.getElementById('calendar').innerHTML = `<div class="card"><div class="card-header"><h2>Calendar View</h2></div></div>`; }
+function renderSettings() {
+    const view = document.getElementById('settings');
+    let themeButtonsHTML = Object.entries(themes).map(([id, theme]) => 
+        `<button class="btn theme-btn ${questData.settings.theme === id ? 'active' : ''}" data-theme="${id}" style="background-color: ${theme.colors['--accent-primary']};">${theme.name}</button>`
+    ).join('');
+    view.innerHTML = `
+        <div class="card">
+            <div class="card-header"><h2><i class="fas fa-paint-brush"></i> Theme Selector</h2></div>
+            <div class="theme-buttons">${themeButtonsHTML}</div>
+        </div>
+        <div class="card">
+            <div class="card-header"><h2><i class="fas fa-database"></i> Data Management</h2></div>
+            <button class="btn btn-secondary" id="export-data-btn"><i class="fas fa-download"></i> Export Data</button>
+            <input type="file" id="import-file-input" style="display: none;" accept=".json">
+            <button class="btn btn-secondary" id="import-data-btn"><i class="fas fa-upload"></i> Import Data</button>
+        </div>
+        <div class="card">
+            <div class="card-header"><h2><i class="fas fa-star"></i> Skill Management</h2></div>
+            <div id="skill-manager"></div>
+            <button class="btn btn-primary" id="add-skill-btn"><i class="fas fa-plus"></i> Add New Skill</button>
+        </div>
+    `;
+    view.querySelector('.theme-buttons').addEventListener('click', e => {
+        if (e.target.classList.contains('theme-btn')) {
+            setTheme(e.target.dataset.theme);
+            renderSettings();
+            saveData();
+        }
+    });
+}
+
+// --- Final Startup Call ---
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
