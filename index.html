@@ -483,8 +483,15 @@
         .theme-buttons { display: flex; gap: 1rem; flex-wrap: wrap; }
         .theme-btn { width: 100px; height: 60px; border: 2px solid var(--bg-tertiary); }
         .theme-btn.active { border-color: var(--accent-primary); }
-        .skill-manager-item { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
-        .skill-manager-item input { background: var(--bg-tertiary); }
+        .skill-manager-item {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--bg-tertiary);
+        }
         
         /* Modals */
         .modal-backdrop {
@@ -524,6 +531,36 @@
             to { transform: translateY(0); opacity: 1; }
         }
         
+        /* Notifications */
+        #notification-container {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .notification {
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            transform: translateX(120%);
+            animation: slideInNotification 0.5s forwards, fadeOutNotification 0.5s 4.5s forwards;
+        }
+        .notification.success { background: var(--success); }
+        .notification.error { background: var(--danger); }
+        @keyframes slideInNotification {
+            to { transform: translateX(0); }
+        }
+        @keyframes fadeOutNotification {
+            from { opacity: 1; }
+            to { opacity: 0; transform: translateX(120%); }
+        }
+
+
         /* Responsive */
         @media (max-width: 1024px) {
             .container {
@@ -543,7 +580,7 @@
             }
         }
         @media (max-width: 768px) {
-            .grid-3-col, .grid-2-col, .add-goal-form {
+            .grid-3-col, .grid-2-col, .add-goal-form, .skill-manager-item {
                 grid-template-columns: 1fr;
             }
             .header {
@@ -593,7 +630,7 @@
     </div>
 
     <div id="main-modal" class="modal-backdrop"></div>
-    <div id="weekly-report-modal" class="modal-backdrop"></div>
+    <div id="notification-container"></div>
 
 
 <script>
@@ -676,6 +713,17 @@ function updateDateTime() {
     document.getElementById('current-date').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
+function showNotification(message, type = 'success') {
+    const container = document.getElementById('notification-container');
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+    container.appendChild(notification);
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
 // ===================================================================================
 // 🚀 SECTION 2: THE GAMIFICATION ENGINE
 // ===================================================================================
@@ -707,6 +755,7 @@ function checkLevelUp() {
     while (questData.xp >= xpForNext) {
         questData.xp -= xpForNext;
         questData.level++;
+        showNotification(`Leveled up to Level ${questData.level}!`, 'success');
     }
     for (const skillId in questData.skills) {
         const skill = questData.skills[skillId];
@@ -714,6 +763,7 @@ function checkLevelUp() {
         while (skill.xp >= xpForNextSkill) {
             skill.xp -= xpForNextSkill;
             skill.level++;
+            showNotification(`${skill.name} skill leveled up to Level ${skill.level}!`, 'success');
         }
     }
 }
@@ -723,6 +773,7 @@ function checkAchievements() {
         if (!questData.achievements.includes(id) && ach.condition()) {
             questData.achievements.push(id);
             addXP(100); // Bonus XP for achievement
+            showNotification(`Achievement Unlocked: ${ach.name}!`, 'gold');
         }
     });
 }
@@ -1298,6 +1349,7 @@ function startPomodoro() {
             document.body.classList.remove('focus-mode');
             if (document.getElementById('pomodoro-type').value === 'pomodoro') {
                 addXP(25); // Award XP for a full session
+                showNotification('Pomodoro session complete! +25XP', 'success');
             }
             resetPomodoro();
         }
@@ -1366,7 +1418,7 @@ function renderCalendarGrid() {
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
         const isActive = questData.history[dateStr];
-        const isToday = day === today.getDate();
+        const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
         grid.innerHTML += `
             <div class="calendar-day ${isActive ? 'active' : ''} ${isToday ? 'today' : ''}">
                 <div class="day-number">${day}</div>
@@ -1394,10 +1446,18 @@ function renderSettings() {
         </div>
         <div class="card">
             <div class="card-header"><h2><i class="fas fa-star"></i> Skill Management</h2></div>
-            <div id="skill-manager"></div>
-            <button class="btn btn-primary" id="add-skill-btn"><i class="fas fa-plus"></i> Add New Skill</button>
+            <div id="skill-manager-list"></div>
+            <form id="add-skill-form" class="skill-manager-item">
+                <input type="text" name="name" placeholder="Skill Name" required>
+                <input type="text" name="description" placeholder="Description" required>
+                <input type="text" name="icon" placeholder="fas fa-code" required>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i></button>
+            </form>
         </div>
     `;
+    renderSkillManager();
+
+    // Event Listeners for Settings
     view.querySelector('.theme-buttons').addEventListener('click', e => {
         if (e.target.classList.contains('theme-btn')) {
             setTheme(e.target.dataset.theme);
@@ -1405,7 +1465,96 @@ function renderSettings() {
             saveData();
         }
     });
+    view.querySelector('#export-data-btn').addEventListener('click', exportData);
+    view.querySelector('#import-data-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
+    view.querySelector('#import-file-input').addEventListener('change', importData);
+    view.querySelector('#add-skill-form').addEventListener('submit', handleAddSkill);
+    view.querySelector('#skill-manager-list').addEventListener('click', handleSkillEditOrDelete);
 }
+
+function renderSkillManager() {
+    const listEl = document.getElementById('skill-manager-list');
+    listEl.innerHTML = Object.entries(questData.skills).map(([id, skill]) => `
+        <div class="skill-manager-item">
+            <input type="text" value="${skill.name}" data-skill-id="${id}" data-field="name">
+            <input type="text" value="${skill.description}" data-skill-id="${id}" data-field="description">
+            <input type="text" value="${skill.icon}" data-skill-id="${id}" data-field="icon">
+            <button class="btn btn-danger" data-skill-id="${id}" data-action="delete"><i class="fas fa-trash"></i></button>
+        </div>
+    `).join('');
+}
+
+function handleAddSkill(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const newSkill = Object.fromEntries(formData.entries());
+    const newId = newSkill.name.toLowerCase().replace(/\s+/g, '-');
+    
+    if (questData.skills[newId]) {
+        showNotification('Skill with this name already exists.', 'error');
+        return;
+    }
+
+    questData.skills[newId] = { ...newSkill, level: 1, xp: 0 };
+    saveData();
+    renderSettings();
+}
+
+function handleSkillEditOrDelete(e) {
+    const target = e.target.closest('[data-skill-id]');
+    if (!target) return;
+
+    const skillId = target.dataset.skillId;
+    if (target.dataset.action === 'delete') {
+        if (confirm(`Are you sure you want to delete the "${questData.skills[skillId].name}" skill? This cannot be undone.`)) {
+            delete questData.skills[skillId];
+            // Also remove this skillId from habits and goals
+            questData.habits.forEach(h => { if (h.skillId === skillId) h.skillId = null; });
+            questData.goals.forEach(g => { if (g.skillId === skillId) g.skillId = null; });
+            saveData();
+            renderSettings();
+        }
+    } else if (target.tagName === 'INPUT') {
+        target.addEventListener('change', () => {
+            questData.skills[skillId][target.dataset.field] = target.value;
+            saveData();
+            showNotification('Skill updated!', 'success');
+        });
+    }
+}
+
+function exportData() {
+    const dataStr = JSON.stringify(questData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aiml-quest-pro-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotification('Data exported successfully!', 'success');
+}
+
+function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const importedData = JSON.parse(event.target.result);
+            if (confirm('This will overwrite all current data. Are you sure?')) {
+                questData = importedData;
+                saveData();
+                showNotification('Data imported successfully! Reloading...', 'success');
+                setTimeout(() => location.reload(), 1000);
+            }
+        } catch (err) {
+            showNotification('Error reading file. Please ensure it is a valid backup.', 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
 
 // --- Final Startup Call ---
 document.addEventListener('DOMContentLoaded', init);
