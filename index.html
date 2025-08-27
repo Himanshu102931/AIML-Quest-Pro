@@ -396,6 +396,29 @@
         .day-summary-card.active {
             border-bottom-color: var(--success);
         }
+        
+        /* Analytics */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .metric-card {
+            background: var(--bg-primary);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            text-align: center;
+        }
+        .metric-value { font-size: 2rem; font-weight: 700; color: var(--accent-primary); }
+        .metric-label { color: var(--text-secondary); }
+        .suggestion-item {
+            background: var(--bg-primary);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            border-left: 4px solid var(--accent-secondary);
+            margin-bottom: 1rem;
+        }
 
 
         /* Achievements */
@@ -548,6 +571,7 @@
 
 let questData;
 let skillGrowthChart;
+let skillBalanceChart;
 
 const defaultQuestData = {
     level: 1,
@@ -751,7 +775,6 @@ function renderHabitList() {
         if (habit.frequency === 'daily') {
             return !habit.restDays || !habit.restDays.includes(dayOfWeek.toString());
         }
-        // TODO: Add logic for weekly/monthly
         return true;
     });
 
@@ -1056,9 +1079,108 @@ function renderSkillGrowthChart() {
     });
 }
 
+// --- Analytics View Logic ---
+function renderAnalytics() {
+    const view = document.getElementById('analytics');
+    view.innerHTML = `
+        <div class="grid-2-col">
+            <div class="card">
+                <div class="card-header"><h2><i class="fas-chart-pie"></i> Skill Balance</h2></div>
+                <canvas id="skill-balance-chart"></canvas>
+            </div>
+            <div class="card">
+                <div class="card-header"><h2><i class="fas-tachometer-alt"></i> Key Metrics</h2></div>
+                <div class="analytics-grid" id="analytics-metrics"></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><h2><i class="fas fa-lightbulb"></i> AI Suggestions</h2></div>
+            <div id="ai-suggestions"></div>
+        </div>
+    `;
+    renderSkillBalanceChart();
+    renderAnalyticsMetrics();
+    renderAiSuggestions();
+}
+
+function renderSkillBalanceChart() {
+    const ctx = document.getElementById('skill-balance-chart').getContext('2d');
+    const labels = Object.values(questData.skills).map(s => s.name);
+    const data = Object.values(questData.skills).map(s => s.level);
+
+    if (skillBalanceChart) skillBalanceChart.destroy();
+
+    skillBalanceChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Skill Level',
+                data: data,
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    ticks: { backdropColor: 'transparent' }
+                }
+            }
+        }
+    });
+}
+
+function renderAnalyticsMetrics() {
+    const metricsEl = document.getElementById('analytics-metrics');
+    // Simplified metrics for now
+    const totalXP = questData.xp + (questData.level - 1) * 100; // approximation
+    const totalHabits = questData.habits.length;
+    const totalGoals = questData.goals.filter(g => g.completed).length;
+
+    metricsEl.innerHTML = `
+        <div class="metric-card"><div class="metric-value">${totalXP}</div><div class="metric-label">Total XP</div></div>
+        <div class="metric-card"><div class="metric-value">${questData.level}</div><div class="metric-label">Current Level</div></div>
+        <div class="metric-card"><div class="metric-value">${totalHabits}</div><div class="metric-label">Active Habits</div></div>
+        <div class="metric-card"><div class="metric-value">${totalGoals}</div><div class="metric-label">Goals Completed</div></div>
+    `;
+}
+
+function renderAiSuggestions() {
+    const suggestionsEl = document.getElementById('ai-suggestions');
+    const suggestions = [];
+    
+    // Suggestion 1: Focus on lowest skill
+    let lowestLevel = Infinity;
+    let lowestSkill = null;
+    Object.values(questData.skills).forEach(skill => {
+        if (skill.level < lowestLevel) {
+            lowestLevel = skill.level;
+            lowestSkill = skill.name;
+        }
+    });
+    if (lowestSkill) {
+        suggestions.push(`Your lowest skill is <strong>${lowestSkill}</strong>. Consider setting a new goal or habit for it.`);
+    }
+
+    // Suggestion 2: Create a goal if none exist
+    if (questData.goals.filter(g => !g.completed).length === 0) {
+        suggestions.push("You have no active goals. Set a new long-term target to stay motivated!");
+    }
+
+    if (suggestions.length === 0) {
+        suggestionsEl.innerHTML = '<p>You\'re doing great! Keep up the balanced effort.</p>';
+    } else {
+        suggestionsEl.innerHTML = suggestions.map(s => `<div class="suggestion-item">${s}</div>`).join('');
+    }
+}
+
 
 // --- Placeholder Render Functions ---
-function renderAnalytics() { document.getElementById('analytics').innerHTML = `<div class="card"><div class="card-header"><h2>Analytics View</h2></div></div>`; }
 function renderAchievements() { document.getElementById('achievements').innerHTML = `<div class="card"><div class="card-header"><h2>Trophy Room</h2></div></div>`; }
 function renderPomodoro() { document.getElementById('pomodoro').innerHTML = `<div class="card"><div class="card-header"><h2>Pomodoro Timer</h2></div></div>`; }
 function renderCalendar() { document.getElementById('calendar').innerHTML = `<div class="card"><div class="card-header"><h2>Calendar View</h2></div></div>`; }
